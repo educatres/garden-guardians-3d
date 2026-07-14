@@ -8,9 +8,11 @@
 - 4 種植物：豆豆射手、陽光花、堅果盾、冰豆射手
 - 陽光資源、植物冷卻、殭屍攻擊、冰凍減速
 - 5 波漸進式難度
+- 簡單、中間、困難三種關卡難度
 - 桌面與手機觸控操作
 - 滑鼠或觸控拖曳旋轉視角、滾輪縮放
 - Kenney Nature Kit 的低多邊形樹木、灌木與岩石
+- Quaternius 的卡通動畫殭屍與 Fantasy House
 - 純前端，不需要伺服器或資料庫
 
 ## 本機啟動
@@ -43,6 +45,8 @@ python3 -m http.server 8000
 ## 3D 模型素材
 
 庭院中的樹木、灌木與岩石取自 [Kenney Nature Kit](https://opengameart.org/content/nature-kit)，採用 [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) 授權。素材作者為 Kenney，署名非強制但在此致謝。
+
+卡通殭屍與房屋分別取自 Quaternius 的 [Zombie](https://poly.pizza/m/JoBvxIUpZP) 與 [Fantasy House](https://poly.pizza/m/BH2XHWUNmF)，同樣採用 CC0 1.0 授權。
 
 ## 授權與名稱提醒
 

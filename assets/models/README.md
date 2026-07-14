@@ -12,3 +12,10 @@ License: CC0 1.0 Universal
 https://creativecommons.org/publicdomain/zero/1.0/
 
 Attribution is not required. Credit: Kenney (https://kenney.nl/).
+
+## Quaternius models
+
+- `cute-zombie.glb` - Zombie: https://poly.pizza/m/JoBvxIUpZP
+- `fantasy-house.glb` - Fantasy House: https://poly.pizza/m/BH2XHWUNmF
+
+Both models are by Quaternius and licensed CC0 1.0 Universal.

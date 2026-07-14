@@ -14,7 +14,7 @@
   <header class="topbar">
     <div class="brand">
       <strong>🌻 庭院植物守衛 3D</strong>
-      <span>純 HTML・CSS・JavaScript</span>
+      <span id="difficultyLabel">尚未開始</span>
     </div>
     <div class="stats">
       <div>☀️ <b id="sunCount">150</b></div>
@@ -45,6 +45,25 @@
   </section>
 
   <div id="toast"></div>
+
+  <div id="setupOverlay" class="overlay">
+    <div class="modal setup-modal">
+      <p class="modal-kicker">庭院防守任務</p>
+      <h1>選擇難度</h1>
+      <div class="difficulty-options" role="group" aria-label="關卡難度">
+        <button class="difficulty-option" data-difficulty="easy">
+          <b>簡單</b><small>更多陽光，敵人較慢</small>
+        </button>
+        <button class="difficulty-option selected" data-difficulty="medium">
+          <b>中間</b><small>標準節奏與挑戰</small>
+        </button>
+        <button class="difficulty-option" data-difficulty="hard">
+          <b>困難</b><small>更多、更快、更耐打</small>
+        </button>
+      </div>
+      <button id="startGameBtn" class="start-button">開始守衛</button>
+    </div>
+  </div>
 
   <div id="overlay" class="overlay hidden">
     <div class="modal">

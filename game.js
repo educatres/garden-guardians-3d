@@ -1,14 +1,16 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 
 const canvas = document.querySelector('#game');
+const mobileView = innerWidth < 720;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x8fd5f0);
-scene.fog = new THREE.Fog(0x8fd5f0, 24, 55);
+scene.fog = new THREE.Fog(0x8fd5f0, mobileView ? 38 : 24, mobileView ? 85 : 55);
 
-const camera = new THREE.PerspectiveCamera(48, innerWidth / innerHeight, 0.1, 100);
-camera.position.set(-7, 13, 18);
+const camera = new THREE.PerspectiveCamera(mobileView ? 58 : 48, innerWidth / innerHeight, 0.1, 100);
+camera.position.set(mobileView ? -12 : -7, mobileView ? 22 : 13, mobileView ? 32 : 18);
 camera.lookAt(4, 0, 0);
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -23,7 +25,7 @@ controls.target.set(4, .8, 0);
 controls.enableDamping = true;
 controls.dampingFactor = .06;
 controls.minDistance = 11;
-controls.maxDistance = 34;
+controls.maxDistance = mobileView ? 58 : 34;
 controls.minPolarAngle = .35;
 controls.maxPolarAngle = Math.PI / 2.08;
 controls.update();
@@ -37,9 +39,16 @@ const ROWS = 5, COLS = 9, CELL = 1.7;
 const x0 = -1.5, z0 = -(ROWS - 1) * CELL / 2;
 const gridGroup = new THREE.Group(); scene.add(gridGroup);
 const plants = [], zombies = [], projectiles = [], suns = [];
-let selectedPlant = 'shooter', sun = 150, score = 0, wave = 1, paused = false, gameOver = false;
+let selectedPlant = 'shooter', sun = 150, score = 0, wave = 1, paused = true, gameOver = false, started = false;
 let spawnTimer = 0, spawnedThisWave = 0, waveGap = 0;
 const occupied = new Map();
+
+const difficultyDefs = {
+  easy:{label:'簡單',initialSun:250,hpMultiplier:.75,speedMultiplier:.82,attackDamage:18,enemyBonus:-1,spawnBase:2.45,minSpawn:.9,sunValue:30},
+  medium:{label:'中間',initialSun:150,hpMultiplier:1,speedMultiplier:1,attackDamage:25,enemyBonus:0,spawnBase:2.1,minSpawn:.7,sunValue:25},
+  hard:{label:'困難',initialSun:100,hpMultiplier:1.4,speedMultiplier:1.25,attackDamage:34,enemyBonus:2,spawnBase:1.75,minSpawn:.52,sunValue:20}
+};
+let difficulty = difficultyDefs.medium;
 
 const plantDefs = {
   shooter:{cost:100, hp:100, cooldown:1.25, color:0x54b948, damage:20, slow:false},
@@ -53,12 +62,21 @@ function sphere(r,color){const m=new THREE.Mesh(new THREE.SphereGeometry(r,20,16
 function cylinder(rt,rb,h,color){const m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,18),new THREE.MeshStandardMaterial({color,roughness:.8}));m.castShadow=true;return m}
 
 const natureLoader = new GLTFLoader();
+let zombieTemplate=null,zombieAnimations=[];
+
+function normalizeModel(model,targetHeight){
+  const bounds=new THREE.Box3().setFromObject(model),size=bounds.getSize(new THREE.Vector3());
+  const scale=targetHeight/size.y;model.scale.setScalar(scale);bounds.setFromObject(model);
+  const center=bounds.getCenter(new THREE.Vector3());model.position.set(-center.x,-bounds.min.y,-center.z);return model
+}
 
 async function loadNatureModels(){
-  const [tree, bush, rock] = await Promise.all([
+  const [tree,bush,rock,house,zombie] = await Promise.all([
     natureLoader.loadAsync('assets/models/tree_default.glb'),
     natureLoader.loadAsync('assets/models/plant_bushDetailed.glb'),
-    natureLoader.loadAsync('assets/models/rock_largeA.glb')
+    natureLoader.loadAsync('assets/models/rock_largeA.glb'),
+    natureLoader.loadAsync('assets/models/fantasy-house.glb'),
+    natureLoader.loadAsync('assets/models/cute-zombie.glb')
   ]);
   const addCopies=(source,placements)=>placements.forEach(([x,z,scale,rotation=0])=>{
     const model=source.scene.clone(true);model.position.set(x,0,z);model.scale.setScalar(scale);model.rotation.y=rotation;
@@ -66,7 +84,10 @@ async function loadNatureModels(){
   });
   addCopies(tree,[[-6.8,-6.1,1.35,.3],[-2.5,6.15,1.15,1.1],[4.8,-6.25,1.25,2.4],[11.2,6.15,1.4,.8],[20,-5.8,1.2,2]]);
   addCopies(bush,[[-4.6,-4.5,1.15,.5],[-4.2,4.5,.9,2.1],[8.2,-5.6,.9,1.6],[14,5.7,1.1,.4],[21,3.8,.85,2.8]]);
-  addCopies(rock,[[-7.2,4.7,.75,.4],[7,-5.75,.55,1.8],[13.2,5.85,.7,2.4],[21,-3.7,.62,.9]])
+  addCopies(rock,[[-7.2,4.7,.75,.4],[7,-5.75,.55,1.8],[13.2,5.85,.7,2.4],[21,-3.7,.62,.9]]);
+  const houseModel=normalizeModel(house.scene,5.2);houseModel.position.add(new THREE.Vector3(-5.4,0,0));houseModel.rotation.y=Math.PI/2;
+  houseModel.traverse(child=>{if(child.isMesh){child.castShadow=true;child.receiveShadow=true}});scene.add(houseModel);
+  zombieTemplate=normalizeModel(zombie.scene,2.25);zombieAnimations=zombie.animations
 }
 
 function buildWorld(){
@@ -76,9 +97,6 @@ function buildWorld(){
     tile.position.set(x0+c*CELL,0,z0+r*CELL); tile.userData={r,c,tile:true}; gridGroup.add(tile);
   }
   const path=box(5,.08,15,0xc6b483);path.position.set(17,-.04,0);scene.add(path);
-  const house=box(3.8,3.4,5.8,0xf0d7a5);house.position.set(-5.4,1.55,0);scene.add(house);
-  const roof=new THREE.Mesh(new THREE.ConeGeometry(3.8,2.1,4),new THREE.MeshStandardMaterial({color:0xaa5544}));roof.rotation.y=Math.PI/4;roof.position.set(-5.4,4.25,0);roof.castShadow=true;scene.add(roof);
-  const door=box(.9,1.8,.15,0x6a4328);door.position.set(-3.48,.9,0);door.rotation.y=Math.PI/2;scene.add(door);
   for(let r=0;r<ROWS;r++){const mower=box(.8,.35,.8,0xd54235);mower.position.set(-2.9,.22,z0+r*CELL);scene.add(mower)}
 }
 
@@ -100,17 +118,19 @@ function makePlant(type,r,c){
 
 function makeZombie(row){
   const g=new THREE.Group();
-  const body=box(.65,1.25,.5,0x6a5c84);body.position.y=1.15;g.add(body);
-  const head=sphere(.42,0x9ab48e);head.position.y=2.05;g.add(head);
-  const eye1=sphere(.06,0x111),eye2=eye1.clone();eye1.position.set(-.12,2.12,.38);eye2.position.set(.15,2.12,.36);g.add(eye1,eye2);
-  const leg1=box(.2,.75,.2,0x4e4235), leg2=leg1.clone();leg1.position.set(-.18,.38,0);leg2.position.set(.18,.38,0);g.add(leg1,leg2);
-  g.position.set(18,0,z0+row*CELL); g.userData={row,hp:100+wave*22,speed:.43+wave*.035,attackTimer:0,slow:0};scene.add(g);zombies.push(g)
+  if(zombieTemplate){
+    const model=cloneSkeleton(zombieTemplate);model.rotation.y=-Math.PI/2;model.traverse(child=>{if(child.isMesh){child.castShadow=true;child.receiveShadow=true}});g.add(model);
+    if(zombieAnimations.length){const mixer=new THREE.AnimationMixer(model),clip=zombieAnimations.find(a=>/walk|run/i.test(a.name))||zombieAnimations[0];mixer.clipAction(clip).play();g.userData.mixer=mixer}
+  }else{
+    const body=box(.65,1.25,.5,0x6a5c84);body.position.y=1.15;g.add(body);const head=sphere(.42,0x9ab48e);head.position.y=2.05;g.add(head)
+  }
+  g.position.set(18,0,z0+row*CELL);g.userData={...g.userData,row,hp:(100+wave*22)*difficulty.hpMultiplier,speed:(.43+wave*.035)*difficulty.speedMultiplier,attackTimer:0,slow:0};scene.add(g);zombies.push(g)
 }
 
 function shoot(p){
   const type=p.userData.type, def=plantDefs[type]; const pea=sphere(.14,type==='ice'?0x8fe9ff:0x68d35a);pea.position.copy(p.position).add(new THREE.Vector3(.7,1.15,0));pea.userData={row:p.userData.r,damage:def.damage,slow:def.slow,speed:5.2};scene.add(pea);projectiles.push(pea)
 }
-function createSun(p){const s=sphere(.22,0xffdf3a);s.position.copy(p.position).add(new THREE.Vector3(0,2,0));s.userData={life:8,value:25,baseY:s.position.y};scene.add(s);suns.push(s)}
+function createSun(p){const s=sphere(.22,0xffdf3a);s.position.copy(p.position).add(new THREE.Vector3(0,2,0));s.userData={life:8,value:difficulty.sunValue,baseY:s.position.y};scene.add(s);suns.push(s)}
 function removeObj(arr,obj){const i=arr.indexOf(obj);if(i>=0)arr.splice(i,1);scene.remove(obj)}
 
 function updatePlants(dt){
@@ -132,17 +152,17 @@ function updateProjectiles(dt){
 }
 function updateZombies(dt){
   for(const z of [...zombies]){
+    z.userData.mixer?.update(dt);
     if(z.userData.slow>0)z.userData.slow-=dt;const speed=z.userData.speed*(z.userData.slow>0?.48:1);
     const target=plants.find(p=>p.userData.r===z.userData.row&&p.position.x<z.position.x&&z.position.x-p.position.x<1.05);
-    if(target){z.userData.attackTimer-=dt;if(z.userData.attackTimer<=0){target.userData.hp-=25;z.userData.attackTimer=.75;target.scale.y=.9;setTimeout(()=>target.scale.y=1,100);if(target.userData.hp<=0){occupied.delete(`${target.userData.r},${target.userData.c}`);target.userData.alive=false;removeObj(plants,target)}}}
+    if(target){z.userData.attackTimer-=dt;if(z.userData.attackTimer<=0){target.userData.hp-=difficulty.attackDamage;z.userData.attackTimer=.75;target.scale.y=.9;setTimeout(()=>target.scale.y=1,100);if(target.userData.hp<=0){occupied.delete(`${target.userData.r},${target.userData.c}`);target.userData.alive=false;removeObj(plants,target)}}}
     else z.position.x-=speed*dt;
-    z.children.slice(-2).forEach((leg,i)=>leg.rotation.z=Math.sin(performance.now()*.006+i*Math.PI)*.25);
     if(z.position.x<-3.15){finish(false);return}
   }
 }
 function updateSuns(dt){for(const s of [...suns]){s.userData.life-=dt;s.rotation.y+=dt*2;s.position.y=s.userData.baseY+Math.sin(performance.now()*.004)*.16;if(s.userData.life<=0)removeObj(suns,s)}}
 function updateWaves(dt){
-  if(spawnedThisWave<4+wave*2){spawnTimer-=dt;if(spawnTimer<=0){makeZombie(Math.floor(Math.random()*ROWS));spawnedThisWave++;spawnTimer=Math.max(.7,2.1-wave*.18)}}
+  if(spawnedThisWave<4+wave*2+difficulty.enemyBonus){spawnTimer-=dt;if(spawnTimer<=0){makeZombie(Math.floor(Math.random()*ROWS));spawnedThisWave++;spawnTimer=Math.max(difficulty.minSpawn,difficulty.spawnBase-wave*.18)}}
   else if(zombies.length===0){waveGap+=dt;if(waveGap>2.5){if(wave>=5){finish(true)}else{wave++;spawnedThisWave=0;spawnTimer=.8;waveGap=0;toast(`第 ${wave} 波來襲！`);updateUI()}}}
 }
 
@@ -164,8 +184,13 @@ canvas.addEventListener('pointerup',e=>{if(pressStart&&!dragged)handleCanvasTap(
 canvas.addEventListener('pointercancel',()=>{pressStart=null});
 
 document.querySelectorAll('.plant-card').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.plant-card').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');selectedPlant=btn.dataset.plant}));
-document.querySelector('#pauseBtn').addEventListener('click',()=>{paused=!paused;document.querySelector('#pauseBtn').textContent=paused?'繼續':'暫停'});
+document.querySelector('#pauseBtn').addEventListener('click',()=>{if(!started)return;paused=!paused;document.querySelector('#pauseBtn').textContent=paused?'繼續':'暫停'});
 document.querySelector('#restartBtn').addEventListener('click',()=>location.reload());
+document.querySelectorAll('.difficulty-option').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.difficulty-option').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected')}));
+document.querySelector('#startGameBtn').addEventListener('click',()=>{
+  const key=document.querySelector('.difficulty-option.selected').dataset.difficulty;difficulty=difficultyDefs[key];sun=difficulty.initialSun;started=true;paused=false;
+  document.querySelector('#difficultyLabel').textContent=`${difficulty.label}模式`;document.querySelector('#setupOverlay').classList.add('hidden');updateUI();toast(`${difficulty.label}模式開始！`)
+});
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 
 let last=performance.now();
