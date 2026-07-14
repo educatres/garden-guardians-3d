@@ -1,6 +1,6 @@
 # 庭院植物守衛 3D
 
-一款受經典「植物防守殭屍」玩法啟發的純網頁 3D 塔防小遊戲。所有角色皆由 Three.js 基本幾何圖形即時建立，不使用受版權保護的原作素材。
+一款受經典「植物防守殭屍」玩法啟發的純網頁 3D 塔防小遊戲。角色由 Three.js 基本幾何圖形建立，庭院景物使用免費 CC0 3D 模型，不含受版權保護的原作素材。
 
 ## 功能
 
@@ -9,6 +9,8 @@
 - 陽光資源、植物冷卻、殭屍攻擊、冰凍減速
 - 5 波漸進式難度
 - 桌面與手機觸控操作
+- 滑鼠或觸控拖曳旋轉視角、滾輪縮放
+- Kenney Nature Kit 的低多邊形樹木、灌木與岩石
 - 純前端，不需要伺服器或資料庫
 
 ## 本機啟動
@@ -36,6 +38,11 @@ python3 -m http.server 8000
 - CSS3
 - JavaScript ES Modules
 - Three.js（透過 CDN 載入）
+- Three.js OrbitControls、GLTFLoader
+
+## 3D 模型素材
+
+庭院中的樹木、灌木與岩石取自 [Kenney Nature Kit](https://opengameart.org/content/nature-kit)，採用 [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) 授權。素材作者為 Kenney，署名非強制但在此致謝。
 
 ## 授權與名稱提醒
 
