@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#173b2c" />
+  <title>庭院植物守衛 3D</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="loading">正在長出庭院…</div>
+  <canvas id="game"></canvas>
+
+  <header class="topbar">
+    <div class="brand">
+      <strong>🌻 庭院植物守衛 3D</strong>
+      <span>純 HTML・CSS・JavaScript</span>
+    </div>
+    <div class="stats">
+      <div>☀️ <b id="sunCount">150</b></div>
+      <div>波次 <b id="waveCount">1 / 5</b></div>
+      <div>分數 <b id="scoreCount">0</b></div>
+    </div>
+    <button id="pauseBtn" class="secondary">暫停</button>
+  </header>
+
+  <aside class="plant-panel" aria-label="植物選單">
+    <button class="plant-card selected" data-plant="shooter">
+      <span class="emoji">🌱</span><b>豆豆射手</b><small>100 ☀️</small>
+    </button>
+    <button class="plant-card" data-plant="sunflower">
+      <span class="emoji">🌻</span><b>陽光花</b><small>50 ☀️</small>
+    </button>
+    <button class="plant-card" data-plant="wall">
+      <span class="emoji">🥔</span><b>堅果盾</b><small>75 ☀️</small>
+    </button>
+    <button class="plant-card" data-plant="ice">
+      <span class="emoji">❄️</span><b>冰豆射手</b><small>125 ☀️</small>
+    </button>
+  </aside>
+
+  <section class="help">
+    <b>玩法</b><br />
+    選植物 → 點草地格子放置。消滅所有波次，別讓殭屍走進左側房屋。
+  </section>
+
+  <div id="toast"></div>
+
+  <div id="overlay" class="overlay hidden">
+    <div class="modal">
+      <h1 id="resultTitle">遊戲結束</h1>
+      <p id="resultText"></p>
+      <button id="restartBtn">重新開始</button>
+    </div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js"
+    }
+  }
+  </script>
+  <script type="module" src="game.js"></script>
+</body>
+</html>
